@@ -231,19 +231,21 @@ Rr = 0.3;
 % Load your system model (ensure A, B, C, D are in the workspace)
 load('IP_MODEL.mat');
 
+D = [0 0 0 0 0]';
+
 % Compute the LQR gain
 K = lqr(A, B, QR, Rr);
 
 % Define simulation parameters
-T_sim = 2; % Simulation time in seconds
+T = 5; % Simulation time in seconds
 % Set initial conditions (modify as needed)
-x0 = [1; 2; 1; 0; 0];
+x0 = [1; 0; 1; 0; 0];
 
-% Closed-loop system dynamics: x_dot = (A - B*K)*x
-sys_cl = ss(A - B*K, [], eye(size(A)), []);
+q6 = sim("question6.slx",T);
 
-% Simulate the response
-[y, t, x] = initial(sys_cl, x0, T_sim);
+x=q6.x;
+u=q6.u;
+t=q6.t;
 
 % Define a threshold for settling (for states 1 and 3)
 settle_threshold = 0.05;  
@@ -252,7 +254,7 @@ settle_threshold = 0.05;
 state13 = x(:, [1, 3]);
 
 % Initialize settling time as the simulation time.
-settlingTime = T_sim;  
+settlingTime = T;  
 
 % Loop over simulation time to find when both states are within the threshold
 for k = 1:length(t)
@@ -268,153 +270,144 @@ maxCurrent = max(abs(x(:,5)));
 
 %% Plot the Results
 
-figure;
-subplot(2,1,1);
-plot(t, x, 'LineWidth', 1.5);
-xlabel('Time (s)');
-ylabel('States');
-legend('x1','x2','x3','x4','x5');
-title('Closed-loop Response');
-grid on;
-
-subplot(2,1,2);
-plot(t, x(:,5), 'LineWidth', 1.5);
-xlabel('Time (s)');
-ylabel('Current (A)');
-title('Current Response (State 5)');
-grid on;
+% figure;
+% subplot(2,1,1);
+% plot(t, x, 'LineWidth', 1.5);
+% xlabel('Time (s)');
+% ylabel('States');
+% legend('x1','x2','x3','x4','x5');
+% title('Closed-loop Response');
+% grid on;
+% 
+% subplot(2,1,2);
+% plot(t, x(:,5), 'LineWidth', 1.5);
+% xlabel('Time (s)');
+% ylabel('Current (A)');
+% title('Current Response (State 5)');
+% grid on;
 
 %% Display Performance Metrics
-fprintf('LQR Gain K:\n');
-disp(K);
-fprintf('Settling time (states 1 & 3): %.3f s\n', settlingTime);
-fprintf('Maximum current (state 5): %.3f A\n', maxCurrent);
+% fprintf('LQR Gain K:\n');
+% disp(K);
+% fprintf('Settling time (states 1 & 3): %.3f s\n', settlingTime);
+% fprintf('Maximum current (state 5): %.3f A\n', maxCurrent);
 
-return;
-
-%% Optimal finder
+%% Optimal finder with Q6 candidates
 % This script finds Q and R values that yield faster convergence for states 1 and 3,
 % while ensuring that the current (state 5) stays within a desired range.
-% Candidate parameters: Q1, Q2, Q3, Q4, and R are varied.
+% Candidate parameters: Q1, Q2, Q3, Q4, Q5, and R are varied.
 
-clear; clc; close all;
+% clear; clc; close all;
+% 
+% % Load system model (A, B, C, D, etc.)
+% load('IP_MODEL.mat')  % Ensure A, B, C, D are in the workspace
+% 
+% D = [0 0 0 0 0]';
+% % Define candidate ranges for weights
+% Q1_candidates = [100, 150, 200];   % Candidate weights for state 1
+% Q2_candidates = [0.5, 1, 5];              % Candidate weights for state 2
+% Q3_candidates = [1, 5, 10, 20, 50, 80, 100]; % Candidate weights for state 3
+% Q4_candidates = [0.5, 1, 5];              % Candidate weights for state 4
+% Q5_candidates = [0];                % Candidate weights for state 5 (current)
+% R_candidates  = [0.3];  % Candidate control penalties
+% 
+% % Simulation parameters
+% T = 2;   % Simulation time in seconds
+% % Define initial condition (modify as needed)
+% x0 = [1; 0; 1; 4; 0];  
+% 
+% % Threshold for considering convergence (for states 1 and 3)
+% threshold = 0.05;  % You may adjust this value
+% 
+% % Preallocate result storage
+% results = [];
+% idx = 1;
+% 
+% % Loop over candidate Q1, Q2, Q3, Q4, Q5, and R values
+% for Q1 = Q1_candidates
+%     for Q2 = Q2_candidates
+%         for Q3 = Q3_candidates
+%             for Q4 = Q4_candidates
+%                 for Q5 = Q5_candidates
+%                     for R_val = R_candidates
+%                         % Build the Q matrix (diagonal)
+%                         Qr = diag([Q1, Q2, Q3, Q4, Q5]);
+%                         Rr = R_val;
+% 
+%                         % Compute LQR gain
+%                         K = lqr(A, B, Qr, Rr);
+% 
+%                         % Simulate the closed-loop system:
+%
+                           % q6 = sim("question6.slx",T);
+                           % x=q6.x;
+                           % u=q6.u;
+                           % t=q6.t;
 
-% Load system model (A, B, C, D, etc.)
-load('IP_MODEL.mat')  % Ensure A, B, C, D are in the workspace
-
-% Define candidate ranges for weights
-Q1_candidates = [10, 20, 50, 80, 100, 150, 200];   % Candidate weights for state 1
-Q2_candidates = [0.5, 1, 5];              % Candidate weights for state 2
-Q3_candidates = [1, 5, 10, 20, 50, 80, 100]; % Candidate weights for state 3
-Q4_candidates = [0.5, 1, 5];              % Candidate weights for state 4
-R_candidates  = [0.05, 0.1, 0.2, 0.5, 1];  % Candidate control penalties
-
-% Fixed weight for state 5 (current); you can make this a candidate as well if needed.
-Q5_fixed = 1;
-
-% Simulation parameters
-T_sim = 2;   % Simulation time in seconds
-% Define initial condition (modify as needed)
-x0 = [1; 0; 1; 0; 0];  
-
-% Threshold for considering convergence (for states 1 and 3)
-threshold = 0.05;  % You may adjust this value
-
-% Preallocate result storage
-results = [];
-idx = 1;
-
-% Loop over candidate Q1, Q2, Q3, Q4, and R values
-for Q1 = Q1_candidates
-    for Q2 = Q2_candidates
-        for Q3 = Q3_candidates
-            for Q4 = Q4_candidates
-                for R_val = R_candidates
-                    % Build the Q matrix (diagonal)
-                    Qr = diag([Q1, Q2, Q3, Q4, Q5_fixed]);
-                    Rr = R_val;
-                    
-                    % Compute LQR gain
-                    K = lqr(A, B, Qr, Rr);
-                    
-                    % Simulate the closed-loop system:
-                    % x_dot = (A - B*K)*x
-                    sys_cl = ss(A - B*K, [], eye(size(A)), []);  
-                    [y, t, x] = initial(sys_cl, x0, T_sim);
-                    
-                    % Calculate performance metrics:
-                    % 1. Settling time for states 1 and 3 (when absolute error is below 'threshold')
-                    state13 = x(:, [1, 3]);
-                    settle_time = T_sim;
-                    for k = 1:length(t)
-                        if all(abs(state13(k, :)) < threshold)
-                            settle_time = t(k);
-                            break;
-                        end
-                    end
-                    
-                    % 2. Maximum current reached (state 5)
-                    % (If state 5 is expected to be negative, we use min, else adjust as needed)
-                    max_current = min(x(:,5));  
-                    
-                    % Check if the current constraint is satisfied 
-                    % (modify the condition as needed; here we check that the minimum current is not too low)
-                    if max_current >= -20  
-                        % Store candidate result if the constraint is met
-                        results(idx).Q1 = Q1;
-                        results(idx).Q2 = Q2;
-                        results(idx).Q3 = Q3;
-                        results(idx).Q4 = Q4;
-                        results(idx).R  = R_val;
-                        results(idx).settlingTime = settle_time;
-                        results(idx).maxCurrent = max_current;
-                        results(idx).K = K;
-                        idx = idx + 1;
-                    end
-                    
-                end
-            end
-        end
-    end
-end
-
-%% Select the candidate with the minimum settling time
-if isempty(results)
-    error('No candidate found that meets the current constraint.');
-else
-    settlingTimes = [results.settlingTime];
-    [minTime, bestIdx] = min(settlingTimes);
-    bestCandidate = results(bestIdx);
-    
-    fprintf('Best candidate parameters:\n');
-    fprintf('  Q(1,1) = %.2f\n', bestCandidate.Q1);
-    fprintf('  Q(2,2) = %.2f\n', bestCandidate.Q2);
-    fprintf('  Q(3,3) = %.2f\n', bestCandidate.Q3);
-    fprintf('  Q(4,4) = %.2f\n', bestCandidate.Q4);
-    fprintf('  R = %.2f\n', bestCandidate.R);
-    fprintf('Settling time (states 1 & 3): %.3f s\n', bestCandidate.settlingTime);
-    fprintf('Max current (state 5): %.3f A\n', bestCandidate.maxCurrent);
-    fprintf('LQR Gain K = [%s]\n', num2str(bestCandidate.K, '%0.4f '));
-end
-
-%% Optional: Plot the response for the best candidate
-K_best = bestCandidate.K;
-sys_best = ss(A - B*K_best, [], eye(size(A)), []);
-[y_best, t_best, x_best] = initial(sys_best, x0, T_sim);
-
-figure;
-subplot(2,1,1)
-plot(t_best, x_best, 'LineWidth', 1.5);
-xlabel('Time (s)'); ylabel('States');
-legend('x1','x2','x3','x4','x5');
-title('Closed-loop Response for Best Candidate');
-grid on;
-
-subplot(2,1,2)
-plot(t_best, x_best(:,5), 'LineWidth', 1.5);
-xlabel('Time (s)'); ylabel('Current (A)');
-title('Current Response (State 5)');
-grid on;
+%                         % Calculate performance metrics:
+%                         % 1. Settling time for states 1 and 3 (when absolute error is below 'threshold')
+%                         state13 = x(:, [1, 3]);
+%                         settle_time = T;
+%                         for k = 1:length(t)
+%                             if all(abs(state13(k, :)) < threshold)
+%                                 settle_time = t(k);
+%                                 break;
+%                             end
+%                         end
+% 
+%                         % 2. Maximum current reached (state 5)
+%                         % (If state 5 is expected to be negative, we use min, else adjust as needed)
+%                         max_current = min(x(:,5));  
+% 
+%                         % Check if the current constraint is satisfied 
+%                         % (modify the condition as needed; here we check that the minimum current is not too low)
+%                         if max_current >= -50  
+%                             % Store candidate result if the constraint is met
+%                             results(idx).Q1 = Q1;
+%                             results(idx).Q2 = Q2;
+%                             results(idx).Q3 = Q3;
+%                             results(idx).Q4 = Q4;
+%                             results(idx).Q5 = Q5;
+%                             results(idx).R  = R_val;
+%                             results(idx).settlingTime = settle_time;
+%                             results(idx).maxCurrent = max_current;
+%                             results(idx).K = K;
+%                             idx = idx + 1;
+%                         end
+% 
+%                     end
+%                 end
+%             end
+%         end
+%     end
+% end
+% 
+% %% Select the candidate with the minimum settling time
+% if isempty(results)
+%     error('No candidate found that meets the current constraint.');
+% else
+%     settlingTimes = [results.settlingTime];
+%     [minTime, bestIdx] = min(settlingTimes);
+%     bestCandidate = results(bestIdx);
+% 
+%     fprintf('Best candidate parameters:\n');
+%     fprintf('  Q(1,1) = %.2f\n', bestCandidate.Q1);
+%     fprintf('  Q(2,2) = %.2f\n', bestCandidate.Q2);
+%     fprintf('  Q(3,3) = %.2f\n', bestCandidate.Q3);
+%     fprintf('  Q(4,4) = %.2f\n', bestCandidate.Q4);
+%     fprintf('  Q(5,5) = %.2f\n', bestCandidate.Q5);
+%     fprintf('  R = %.2f\n', bestCandidate.R);
+%     fprintf('Settling time (states 1 & 3): %.3f s\n', bestCandidate.settlingTime);
+%     fprintf('Max current (state 5): %.3f A\n', bestCandidate.maxCurrent);
+%     fprintf('LQR Gain K = [%s]\n', num2str(bestCandidate.K, '%0.4f '));
+% end
+% 
+% 
+% subplot(2,1,2)
+% plot(t_best, x_best(:,5), 'LineWidth', 1.5);
+% xlabel('Time (s)'); ylabel('Current (A)');
+% title('Current Response (State 5)');
+% grid on;
 
 %% Question 7
 % Define the process noise gain. Here, we assume the noise enters each state directly.
@@ -434,13 +427,13 @@ Re = eye(size(C, 1));
 L = lqe(A, G, C, Qe, Re);
 
 % Display the computed observer gain.
-disp('Computed observer (estimator) gain L:');
-disp(L);
+% disp('Computed observer (estimator) gain L:');
+% disp(L);
 
 %% Question 8
 
-Qr = diag([10, 1, 10, 1, 1]); % Weight matrix for states
-Rr = 1;                       % Weight for input variabl
+Qr = diag([300, 5, 150 , 0.5, 0]); % Weight matrix for states
+Rr = 0.3;                       % Weight for input variabl
 K = lqr(A, B, Qr, Rr);
 
 A_c = A - B*K - L*C;  % Controller dynamics matrix
@@ -449,40 +442,181 @@ C_c = -K;             % Controller output matrix
 D_c = zeros(size(C_c,1), size(B_c,2)); 
 
 % Initial conditions - small perturbation in the horizontal bar angle
-x0 = [1 0 1 0 0]';
+x0 = [0.1 0 0.1 1.2  0]';
 D =[0 0]';
 % Simulation parameters
-T = 2;  % Simulation time in seconds
+T = 30;  % Simulation time in seconds
 
 % Run simulation
 out = sim('question8.slx', T);
 u8 = out.u;
 y8 = out.y;
 t8 = out.t;
-x8 = out.x1;
 
-% Plot results
+error_metric = trapz(t8, sum(y8(:,1:2).^2, 2));
+
+max_alpha = max(abs(y8(:,1)));
+
+fprintf('Integrated squared error: %.3f\n', error_metric);
+fprintf("Max_alpha: %.4f\n",max_alpha)
+
+% Define a threshold for settling (for states 1 and 3)
+settle_threshold = 0.05;  
+
+% Extract states 1 and 3
+state_y = y8(:, [1,2]);
+
+% Initialize settling time as the simulation time.
+settlingTime = T;  
+
+% Loop over simulation time to find when both states are within the threshold
+for k = 1:length(t)
+    if all(abs(state_y(k, :)) < settle_threshold)
+        settlingTime = t(k);
+        break;
+    end
+end
+
 figure;
-plot(t8, y8, '--', 'LineWidth', 1.5); % Dotted line
+plot(t8, u8, 'LineWidth', 1.5); % Dotted line
+xlabel('Time (s)', 'FontSize', 14);
+ylabel('U', 'FontSize', 14);
+title('Inverted Pendulum State Feedback Control', 'FontSize', 14);
+legend(); % Adjust legend
+grid on;
+
+figure;
+plot(t8, y8(:, 1), '-.', 'LineWidth', 1.5); % Dash-dot line for column 1
 hold on;
-plot(t, x(:, 1), '-.', 'LineWidth', 1.5); % Dash-dot line for column 1
-plot(t, x(:, 3), '-.', 'LineWidth', 1.5); % Dash-dot line for column 3
+plot(t8, y8(:, 2), '-.', 'LineWidth', 1.5); % Dash-dot line for column 3
 hold off;
 
 xlabel('Time (s)', 'FontSize', 14);
 ylabel('States', 'FontSize', 14);
 title('Inverted Pendulum State Feedback Control', 'FontSize', 14);
 
-legend('α (rad)', 'β_1 (rad)', 'β_3 (rad)', 'Location', 'best'); % Adjust legend
+legend('\alpha', '\beta', 'FontSize', 12, 'Location', 'best');
 grid on;
 
-% Plot control input
-% figure;
-% plot(t, u, 'LineWidth', 1.5);
-% xlabel('Time (s)', 'FontSize', 14);
-% ylabel('Control input u (V)', 'FontSize', 14);
-% title('Control Input');
-% grid on;
+fprintf('Settling time (states 1 and 3): %.3f s\n', settlingTime);
+
+return;
+
+%% Question 8 - Grid Search Minimizing Integrated Output Error
+% Define candidate weight ranges for states 1 to 4 (with Q5 fixed at 0)
+Q1_candidates = [200, 300, 400];
+Q2_candidates = [5, 10, 15];
+Q3_candidates = [150, 200, 300, 400];
+Q4_candidates = [0.5, 1, 2];
+Q5 = 0;  % Fixed weight for state 5
+Rr = 0.3; % Control input weight (fixed)
+
+% Simulation parameters
+T = 10;                           % Simulation time (seconds)
+x0 = [1; 0; 1; 0; 0];          % Initial condition (small perturbation)
+D  = [0; 0];                     % (if needed by your model)
+
+% Preallocate results storage
+results = [];
+idx = 1;
+
+% Grid search over candidate Q weights (for states 1-4)
+for Q1 = Q1_candidates
+    for Q2 = Q2_candidates
+        for Q3 = Q3_candidates
+            for Q4 = Q4_candidates
+                
+                % Build the state weight matrix
+                Qr = diag([Q1, Q2, Q3, Q4, Q5]);
+                
+                % Compute LQR gain with candidate Qr and fixed Rr
+                K = lqr(A, B, Qr, Rr);
+                
+                % Update controller matrices (Assuming L and C are defined)
+                A_c = A - B*K - L*C;
+                B_c = L;
+                C_c = -K;
+                D_c = zeros(size(C_c,1), size(B_c,2));
+                
+                % (Optionally, assign these variables to the base workspace if needed)
+                % assignin('base','K',K); assignin('base','A_c',A_c);
+                % assignin('base','B_c',B_c); assignin('base','C_c',C_c);
+                % assignin('base','D_c',D_c);
+                
+                % Run the simulation for the current candidate (using question8.slx)
+                out = sim('question8.slx', T);
+                y8 = out.y;   % Assuming y8(:,1) = α and y8(:,2) = β
+                t8 = out.t;
+                
+                % Compute performance metric:
+                % Integrated Squared Error of outputs from zero.
+                % This sums the squared values of α and β over time.
+                error_metric = trapz(t8, sum(y8(:,1:2).^2, 2));
+                
+                % Store candidate results
+                results(idx).Q1 = Q1;
+                results(idx).Q2 = Q2;
+                results(idx).Q3 = Q3;
+                results(idx).Q4 = Q4;
+                results(idx).R  = Rr;
+                results(idx).error_metric = error_metric;
+                results(idx).K = K;
+                idx = idx + 1;
+                
+            end
+        end
+    end
+end
+
+%% Select the candidate with the minimum integrated output error
+if isempty(results)
+    error('No candidate found.');
+else
+    errorMetrics = [results.error_metric];
+    [minError, bestIdx] = min(errorMetrics);
+    bestCandidate = results(bestIdx);
+    
+    fprintf('Best candidate parameters:\n');
+    fprintf('  Q(1,1) = %.2f\n', bestCandidate.Q1);
+    fprintf('  Q(2,2) = %.2f\n', bestCandidate.Q2);
+    fprintf('  Q(3,3) = %.2f\n', bestCandidate.Q3);
+    fprintf('  Q(4,4) = %.2f\n', bestCandidate.Q4);
+    fprintf('  Q(5,5) = %.2f\n', Q5);
+    fprintf('  R = %.2f\n', bestCandidate.R);
+    fprintf('Integrated squared error: %.3f\n', bestCandidate.error_metric);
+end
+
+%% Optional: Plot the response for the best candidate
+K_best = bestCandidate.K;
+% Update controller matrices for the best candidate
+A_c = A - B*K_best - L*C;
+B_c = L;
+C_c = -K_best;
+D_c = zeros(size(C_c,1), size(B_c,2));
+
+% Run simulation for best candidate
+out_best = sim('question8.slx', T);
+u8_best = out_best.u;
+y8_best = out_best.y;
+t8_best = out_best.t;
+
+figure;
+plot(t8_best, u8_best, 'LineWidth', 1.5);
+xlabel('Time (s)', 'FontSize', 14);
+ylabel('Control Input U', 'FontSize', 14);
+title('Control Input Response for Best Candidate', 'FontSize', 14);
+grid on;
+
+figure;
+plot(t8_best, y8_best(:,1), '-.', 'LineWidth', 1.5);
+hold on;
+plot(t8_best, y8_best(:,2), '-.', 'LineWidth', 1.5);
+hold off;
+xlabel('Time (s)', 'FontSize', 14);
+ylabel('States', 'FontSize', 14);
+title('Output Response (α and β) for Best Candidate', 'FontSize', 14);
+legend('\alpha', '\beta', 'FontSize', 12, 'Location', 'best');
+grid on;
 
 %% Experimentation
 
