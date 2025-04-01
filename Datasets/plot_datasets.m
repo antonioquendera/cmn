@@ -23,8 +23,8 @@ last_valid = find(~(y(1,:) == 0 & y(2,:) == 0), 1, 'last');
 if ~isempty(last_valid)
     y = y(:, 1:last_valid);
     time_y = time(1:last_valid);
-    u = u(1:last_valid + 100);
-    time_u = time(1:last_valid + 100);
+    u = u(1:last_valid + 1000);
+    time_u = time(1:last_valid + 1000);
 end
 
 figure;
